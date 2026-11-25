@@ -1,22 +1,22 @@
-# Benchmark & Observability Report — Day 14
+# Báo cáo đo kiểm và giám sát — Ngày 14
 
 - **Họ tên:** Trịnh Quốc Đạt — 2A202603581
 - **Ngày chạy:** 25/11/2026 (GMT+7)
 - **Môi trường:** Docker Desktop trên Windows, Python 3.11 Linux trong container, mock LLM.
 
-## 1. SLO của agent
+## 1. Mục tiêu mức dịch vụ (SLO)
 
 | SLI | SLO | Lý do |
 |---|---|---|
 | p95 latency `/ask` | ≤ 500 ms | Giới hạn thời gian chờ của phần lớn người dùng và phát hiện chậm ở đuôi phân phối. |
 | Error rate `/ask` | ≤ 2% | Giới hạn tỷ lệ request không hoàn tất thành công. |
-| Accuracy trên golden dataset | ≥ 85% ở CI | Chặn bản cập nhật xuống dưới ngưỡng chất lượng. Lần kiểm thử v2 sau khi sửa dùng ngưỡng 100%. |
+| Độ chính xác trên bộ dữ liệu chuẩn | ≥ 85% ở CI | Chặn bản cập nhật xuống dưới ngưỡng chất lượng. Lần kiểm thử v2 sau khi sửa dùng ngưỡng 100%. |
 
-## 2. Benchmark hiệu năng (develop)
+## 2. Đo hiệu năng bản phát triển
 
-### 2.1 Concurrency vs latency (agent v2)
+### 2.1 Ảnh hưởng của mức đồng thời đến độ trễ của tác tử v2
 
-| Concurrency | RPS | p50 (ms) | p95 (ms) | p99 (ms) | Error rate | SLO |
+| Số yêu cầu đồng thời | Yêu cầu/giây | p50 (ms) | p95 (ms) | p99 (ms) | Tỷ lệ lỗi | Kết quả SLO |
 |---|---|---|---|---|---|---|
 | 1 | 4.31 | 189.3 | 217.4 | 1698.2 | 0.33% | PASS |
 | 10 | 35.64 | 190.5 | 221.1 | 1689.5 | 2.00% | PASS |
@@ -25,31 +25,31 @@
 
 Mỗi mức có 300 request. RPS tăng tới 109.65 ở concurrency 50 rồi giảm còn 42.01 ở mức 100. Tại mức 100, cả median lẫn p95 đều tăng, phù hợp với dấu hiệu bão hòa hoặc xếp hàng. Một lần chạy ở mỗi mức chưa đủ để xác định thành phần nào là nút thắt.
 
-### 2.2 Tail latency
+### 2.2 Độ trễ ở các phân vị cao
 
-| `MOCK_SLOW_RATE` | avg (ms) | p95 (ms) | p99 (ms) |
+| `MOCK_SLOW_RATE` | Trung bình (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|
 | 0 | 197.9 | 278.2 | 323.6 |
 | 0.03 | 237.5 | 260.1 | 1692.2 |
 | 0.1 | 314.4 | 1681.5 | 1712.2 |
 
-Giữa 0 và 0.03, average tăng 39.6 ms trong khi p99 tăng 1,368.6 ms. Ở 0.1, request chậm chiếm đủ tỷ trọng để p95 tăng mạnh. Dùng p95 làm mục tiêu chính và theo dõi p99 để phát hiện đuôi dài khi nhóm request chậm còn nhỏ.
+Giữa 0 và 0.03, độ trễ trung bình tăng 39.6 ms trong khi p99 tăng 1,368.6 ms. Ở 0.1, request chậm chiếm đủ tỷ trọng để p95 tăng mạnh. Dùng p95 làm mục tiêu chính và theo dõi p99 để phát hiện đuôi dài khi nhóm request chậm còn nhỏ.
 
-### 2.3 Metric và cardinality
+### 2.3 Chỉ số và số lượng chuỗi thời gian
 
 Quan sát `http_requests_total{method="POST",route="/ask",status="200"} 23.0` (counter), `agent_in_flight_requests 0.0` (gauge) và `agent_question_length_chars_count 23.0` (số mẫu của histogram). Histogram độ dài câu hỏi được ghi trước retrieval. Nếu dùng URL thô làm label, mỗi đường dẫn ngẫu nhiên tạo thêm time series và tăng bộ nhớ, lưu trữ, chi phí truy vấn. Dùng mẫu route và gom URL không khớp vào `unmatched` để giới hạn cardinality.
 
-## 3. Benchmark chất lượng (develop)
+## 3. Đánh giá chất lượng bản phát triển
 
 | Chỉ số | Agent v1 | Agent v2 | Agent v2 sau khi sửa KB |
 |---|---|---|---|
-| Accuracy | 4.3% (1/23) | 91.3% (21/23) | 100% (23/23) |
-| Avg tokens / câu | 57.7 | 109.1 | 113.9 |
+| Độ chính xác | 4.3% (1/23) | 91.3% (21/23) | 100% (23/23) |
+| Số token trung bình mỗi câu | 57.7 | 109.1 | 113.9 |
 | Tổng chi phí (USD) | 0.000412 | 0.000762 | 0.000793 |
 | Chi phí / câu đúng (USD) | 0.00041235 | 0.00003627 | 0.00003446 |
-| Quality gate | FAIL | PASS | PASS |
+| Kiểm tra ngưỡng chất lượng | Không đạt | Đạt | Đạt |
 
-| ID | Keyword bị thiếu | Thay đổi |
+| ID | Từ khóa còn thiếu | Thay đổi |
 |---|---|---|
 | security-02 | token, hết hạn, chữ ký | Thêm tài liệu phân biệt API key và JWT, mô tả chữ ký và thời điểm hết hạn. |
 | scaling-03 | cpu, memory, custom metrics | Thêm tài liệu về Kubernetes HPA và các tín hiệu điều chỉnh số pod. |
@@ -58,9 +58,9 @@ Retrieval làm tăng số token và tổng chi phí nhưng giảm chi phí trên
 
 CI có thể khởi động agent v2, đợi /health trả 200 rồi gọi `python eval/run_eval.py --min-accuracy 0.85 --baseline <bao-cao-main.json> --out reports/eval_ci.json`. Giữ exit code của lệnh làm trạng thái của job bắt buộc trên pull request. Nếu accuracy thấp hơn 85% hoặc có regression so với báo cáo trên main, job thất bại và chặn merge.
 
-## 4. Observability stack (production)
+## 4. Hệ thống giám sát bản vận hành
 
-### 4.1 Dashboard và metrics
+### 4.1 Bảng điều khiển và chỉ số
 
 - [Grafana dưới tải](screenshots/grafana-dashboard.png)
 - [Jaeger — trace chậm](screenshots/jaeger-slow-trace.png)
@@ -97,20 +97,20 @@ Trace lỗi `3ce5d3a54605db534acb5bdaa38b7f73` có event `exception` trong span 
 {"ts": "2026-11-25T08:07:28.128152+00:00", "level": "INFO", "service": "observable-agent", "instance": "b715f46cd243", "event": "llm_error", "trace_id": "3ce5d3a54605db534acb5bdaa38b7f73", "span_id": "90bd1aad163f3fc8", "request_id": "004b32c14947", "error": "Upstream LLM error: 503 Service Unavailable (mock)"}
 ```
 
-## 5. Benchmark scaling (production, Locust headless)
+## 5. Đo hiệu quả mở rộng bản vận hành bằng Locust
 
-100 users, ramp-up 10 users/s, chạy 2 phút cho từng mức. Nguồn là dòng `Aggregated` trong CSV cuối của hai lượt.
+Mỗi lượt chạy 2 phút với 100 người dùng mô phỏng, tăng 10 người dùng mỗi giây. Nguồn là dòng `Aggregated` trong CSV cuối của hai lượt.
 
-| Số instance | RPS | p50 (ms) | p95 (ms) | p99 (ms) | Failures |
+| Số bản sao | Yêu cầu/giây | p50 (ms) | p95 (ms) | p99 (ms) | Số yêu cầu lỗi |
 |---|---:|---:|---:|---:|---:|
 | 1 | 65.58 | 190 | 240 | 1,700 | 84/7,839 |
 | 3 | 65.43 | 190 | 280 | 1,700 | 59/7,779 |
 
-Ba replica không cải thiện p95 trong phép đo này. Throughput gần như giữ nguyên và p99 vẫn khoảng 1.7 s. Kết quả phù hợp với workload bị chi phối bởi thời gian chờ của người dùng mô phỏng và độ trễ cố ý trong mock LLM. Hai lượt đo chưa đủ để tách ảnh hưởng của lập lịch container và biến động mẫu ngẫu nhiên. Failures bao gồm HTTP 503 do mock LLM giả lập.
+Ba bản sao không cải thiện p95 trong phép đo này. Thông lượng gần như giữ nguyên và p99 vẫn khoảng 1.7 s. Kết quả phù hợp với workload bị chi phối bởi thời gian chờ của người dùng mô phỏng và độ trễ cố ý trong mock LLM. Hai lượt đo chưa đủ để tách ảnh hưởng của lập lịch container và biến động mẫu ngẫu nhiên. Các yêu cầu lỗi bao gồm HTTP 503 do mock LLM giả lập.
 
 ## 6. Kết luận
 
-- Concurrency cao hơn có thể làm throughput giảm và p95 tăng nếu hệ thống bão hòa.
-- Average dễ che tác động của một nhóm nhỏ request chậm. Cần quan sát cả p95 và p99.
+- Mức đồng thời cao hơn có thể làm throughput giảm và p95 tăng nếu hệ thống bão hòa.
+- Độ trễ trung bình dễ che tác động của một nhóm nhỏ request chậm. Cần quan sát cả p95 và p99.
 - Chi phí trên mỗi câu đúng phản ánh hiệu quả chất lượng rõ hơn chi phí trên mỗi request.
 - Một thay đổi chất lượng có thể giữ nguyên error rate và latency. Có thể phát hiện bằng eval định kỳ, kiểm thử canary và cảnh báo khi accuracy giảm.

@@ -1,8 +1,8 @@
-# Day 14 Lab — Mission Answers
+# Bài thực hành ngày 14 — Câu trả lời và kết quả
 
-## Part 1 — Localhost vs Production
+## Phần 1 — Môi trường cục bộ và môi trường vận hành
 
-| Anti-pattern trong bản develop | Cách bản production xử lý | Lý do |
+| Vấn đề trong bản phát triển | Cách bản vận hành xử lý | Lý do |
 |---|---|---|
 | Dòng 17–18 ghi API key mẫu và URL database có mật khẩu trong mã | Đọc cấu hình từ biến môi trường qua `config.py` | Tránh lưu thông tin xác thực trong Git. |
 | Dòng 21–22 cố định debug và giới hạn token | Đưa cấu hình ra môi trường | Dùng một bản build cho nhiều môi trường. |
@@ -13,23 +13,23 @@
 
 `curl -i -X POST 'http://localhost:18001/ask?question=Hello'` trả `HTTP/1.1 200 OK` và JSON `{"answer":"Tôi là AI agent được deploy lên cloud. Câu hỏi của bạn đã được nhận."}`. Cổng 18001 ánh xạ đến app mẫu chạy trong Docker.
 
-## Part 2 — Docker
+## Phần 2 — Đóng gói bằng Docker
 
 1. Base image của bản develop là `python:3.11`.
 2. Working directory là `/app`.
 3. Copy `requirements.txt` trước mã nguồn giúp Docker tái dùng layer cài dependencies khi chỉ sửa mã.
 4. `ENTRYPOINT` chọn chương trình chính và các đối số từ `docker run IMAGE ...` được truyền cho chương trình đó. `CMD` là lệnh mặc định nếu thiếu `ENTRYPOINT`, hoặc cung cấp đối số mặc định nếu có `ENTRYPOINT`. Đối số ở cuối lệnh `docker run` ghi đè `CMD`.
 
-`docker images` báo image develop **1.67 GB** và image advanced **240 MB**, giảm khoảng **85.6%** theo giá trị Docker hiển thị. Builder có công cụ biên dịch. Stage runtime dùng bản Python slim và chỉ copy packages đã cài cùng mã nguồn.
+`docker images` báo image develop **1.67 GB** và image advanced **240 MB**, giảm khoảng **85.6%** theo giá trị Docker hiển thị. Builder có công cụ biên dịch. Giai đoạn chạy dùng bản Python slim và chỉ copy packages đã cài cùng mã nguồn.
 
 Container develop trả `HTTP/1.1 200 OK` khi gọi `POST /ask?question=Hello` qua cổng 18002. Trong stack Compose, request đi từ client qua Nginx đến agent. Redis cung cấp cache và Qdrant cung cấp kho vector qua mạng nội bộ. Gọi qua Nginx quan sát được:
 
-| Request | Kết quả |
+| Yêu cầu HTTP | Kết quả |
 |---|---|
 | `GET /health` | `HTTP/1.1 200 OK`, `Server: nginx`, JSON có `"status":"ok"`. |
 | `POST /ask` với JSON hỏi về Docker | `HTTP/1.1 200 OK`, `Server: nginx`, JSON trả lời về container. |
 
-## Part 3 — Cloud Deployment
+## Phần 3 — Triển khai trên đám mây
 
 Đã deploy Docker web service và Key Value trên Render Free. [URL public](https://day14-trinhquocdat-agent.onrender.com). Kiểm thử CP6 ghi nhận `/health` và `/ready` trả 200, `/ask` thiếu khóa trả 401 và có khóa hợp lệ trả 200. Xem lệnh và ảnh trong [DEPLOYMENT.md](DEPLOYMENT.md).
 
@@ -39,16 +39,16 @@ Railway dùng `railway.toml` để chọn Dockerfile và đặt đường dẫn 
 
 Render dùng Blueprint YAML để khai báo đồng thời web service và Key Value, chỉ định thư mục nguồn `06-lab-complete` và đường dẫn kiểm tra `/health`. Render sinh API key và cấp kết nối nội bộ đến Key Value cho agent qua biến `REDIS_URL`.
 
-### Exercise 3.3 — Cloud Run
+### Bài tập 3.3 — Cloud Run
 
 1. Cloud Build cài dependencies và chạy pytest.
 2. Sau bước test, Docker build image với tag theo commit và tag `latest`, rồi đẩy cả hai tag lên registry.
 3. Pipeline deploy image theo tag commit lên Cloud Run managed tại `asia-southeast1`, khai báo tài nguyên, giới hạn scale, biến môi trường và secret.
 4. `service.yaml` là cấu hình khai báo có thể áp dụng bằng `gcloud run services replace`. File mô tả cổng 8000, giới hạn concurrency, liveness probe `/health`, startup probe `/ready` và tham chiếu Secret Manager.
 
-## Part 4 — API Security
+## Phần 4 — Bảo mật API
 
-### Exercise 4.1–4.3
+### Bài tập 4.1–4.3
 
 Trích output `curl -i` từ app mẫu develop khi gửi JSON vào `POST /ask`:
 
@@ -73,22 +73,22 @@ content-type: application/json
 {"detail":{"error":"Rate limit exceeded","limit":10,"window_seconds":60,"retry_after_seconds":59}}
 ```
 
-### Exercise 4.4
+### Bài tập 4.4
 
-Bản mẫu kiểm tra ngân sách trước khi gọi mock LLM. Sau khi gọi, nó ước tính token input và output, nhân với giá theo loại token rồi cộng dồn. Vượt ngân sách ngày của user trả `402`. Chạm giới hạn toàn hệ thống trả `503`. Rate limit kiểm soát tần suất trong một cửa sổ thời gian. Cost guard kiểm soát tổng chi phí, vì các request có cùng tần suất có thể dùng số token khác nhau.
+Bản mẫu kiểm tra ngân sách trước khi gọi mock LLM. Sau khi gọi, nó ước tính token input và output, nhân với giá theo loại token rồi cộng dồn. Vượt ngân sách ngày của người dùng trả `402`. Chạm giới hạn toàn hệ thống trả `503`. Rate limit kiểm soát tần suất trong một cửa sổ thời gian. Cost guard kiểm soát tổng chi phí, vì các request có cùng tần suất có thể dùng số token khác nhau.
 
-## Part 5 — Scaling & Reliability
+## Phần 5 — Mở rộng và độ tin cậy
 
 - Exercise 5.1. App mẫu trả `200` cho `GET /health`, kèm uptime và kiểm tra bộ nhớ. `GET /ready` trả `200` và `"ready":true`. Liveness xác nhận tiến trình đang phục vụ. Readiness cho biết nó có thể nhận traffic.
 - Exercise 5.2. Khi shutdown, ngừng nhận request mới, đợi request đang chạy hoàn tất và đóng tài nguyên. Kết quả kiểm tra SIGTERM có request đang chạy được ghi ở Part 6.
 - Exercise 5.3. Nếu history nằm trong RAM, mỗi instance thấy một phần hội thoại riêng. Lưu vào Redis theo session ID để các instance truy cập lịch sử chung.
 - Exercise 5.4–5.5. Chạy stack với ba bản sao agent sau Nginx. `test_stateless.py` gửi năm request qua ba instance rồi đọc đủ mười tin nhắn của cùng session từ Redis. Script kiểm tra chia sẻ state giữa các instance.
 
-## Part 6 — Production Agent
+## Phần 6 — Tác tử sẵn sàng vận hành
 
 Agent dùng Redis để chia sẻ giới hạn request và chi phí giữa các worker. /health xác nhận tiến trình vẫn phản hồi. /ready kiểm tra Redis trước khi báo sẵn sàng phục vụ. Uvicorn xử lý SIGTERM và đợi request đang chạy hoàn tất trước khi FastAPI đóng kết nối Redis.
 
-Chạy script chấm đầy đủ trong container Linux với Docker Engine và tham số `--public-url https://day14-trinhquocdat-agent.onrender.com`. Image được script đo là 63 MB. Khi nhận SIGTERM trong lúc xử lý, request trả 200 và tiến trình thoát với mã 0. Docker dừng container trong 0,8 giây với mã 0. Script cũng xác nhận endpoint `/health` công khai trả 200.
+Chạy script chấm đầy đủ trong container Linux với Docker Engine và tham số `--public-url https://day14-trinhquocdat-agent.onrender.com`. Image được script đo là 63 MB. Khi nhận SIGTERM trong lúc xử lý, request trả 200 và tiến trình thoát với mã 0. Docker dừng vùng chứa trong 0,8 giây với mã 0. Script cũng xác nhận endpoint `/health` công khai trả 200.
 
 ```text
   📋 Checklist Deliverable
@@ -109,7 +109,7 @@ Chạy script chấm đầy đủ trong container Linux với Docker Engine và 
   🎉 PASS 12/12 — PRODUCTION READY! Deploy nào!
 ```
 
-## AI log
+## Nhật ký sử dụng AI (AI log)
 
 - Yêu cầu AI đọc tài liệu Lab 14 và hướng dẫn sửa TODO nhóm cấu hình và liveness. AI đối chiếu bản khung với script chấm và đưa ra hướng dẫn từng file.
 - Sau khi được yêu cầu thao tác trực tiếp, AI triển khai cấu hình, xác thực, rate limit, cost guard, health/readiness, log JSON, vòng đời ứng dụng, Docker Compose và cấu hình deploy. AI chạy bản chấm tĩnh, đạt 28/28 kiểm tra tĩnh. Người học chưa tự sửa hoặc tự chạy kiểm tra trong phiên này.
