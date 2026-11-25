@@ -114,6 +114,15 @@ KNOWLEDGE_BASE: list[tuple[list[str], str]] = [
      "bạn chỉ cần cung cấp image và biến môi trường."),
 ]
 
+KNOWLEDGE_BASE.extend([
+    (["hpa", "kubernetes", "autoscal"],
+     "Kubernetes HPA (Horizontal Pod Autoscaler) điều chỉnh số pod dựa trên CPU, "
+     "memory hoặc custom metrics như số request mỗi giây hay độ dài hàng đợi."),
+    (["jwt"],
+     "API key là chuỗi bí mật dùng để xác thực client. JWT là token có chữ ký số "
+     "và có thể chứa thời điểm hết hạn. Server xác minh chữ ký và kiểm tra thời hạn của token."),
+])
+
 # Agent v1 không có retrieval → chỉ "biết" vài câu chung chung như mock cũ
 V1_RESPONSES = {
     "docker": "Container là cách đóng gói app để chạy ở mọi nơi. Build once, run anywhere!",
